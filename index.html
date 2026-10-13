@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Who Wants to Be a Math Millionaire</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --bg-color: #020617; /* Deep Navy/Black */
+            --glow-blue: rgba(59, 130, 246, 0.8);
+            --glow-purple: rgba(139, 92, 246, 0.8);
+            --glow-gold: rgba(250, 204, 21, 0.8);
+            --color-gold: #facc15;
+            --color-orange: #f97316;
+            --color-green: #22c55e;
+            --color-red: #ef4444;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: white;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            margin: 0;
+            user-select: none;
+        }
+
+        .bg-radial {
+            background: radial-gradient(circle at center 30%, #1e1b4b 0%, #020617 70%);
+        }
+
+        /* Glassmorphism Panels */
+        .glass {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.2);
+        }
+
+        .gold-border { border-color: var(--color-gold); box-shadow: 0 0 15px var(--glow-gold); }
+
+        /* Option Buttons */
+        .btn-option {
+            background: linear-gradient(90deg, rgba(30,27,75,1) 0%, rgba(49,46,129,1) 50%, rgba(30,27,75,1) 100%);
+            border: 2px solid #6d28d9;
+            box-shadow: 0 0 10px var(--glow-purple);
+            transition: all 0.2s ease;
+            clip-path: polygon(4% 0, 96% 0, 100% 50%, 96% 100%, 4% 100%, 0% 50%);
+            position: relative;
+        }
+
+        .btn-option:hover:not(:disabled) {
+            transform: scale(1.02);
+            border-color: #8b5cf6;
+            box-shadow: 0 0 20px var(--glow-purple);
+            cursor: pointer;
+        }
+
+        .btn-option.selected {
+            background: linear-gradient(90deg, #7c2d12 0%, #ea580c 50%, #7c2d12 100%);
+            border-color: var(--color-orange);
+            box-shadow: 0 0 25px var(--color-orange);
+        }
+
+        /* Blinking Animations */
+        @keyframes blink-green {
+            0%, 100% { background: linear-gradient(90deg, #14532d 0%, #16a34a 50%, #14532d 100%); border-color: var(--color-green); box-shadow: 0 0 30px var(--color-green); }
+            50% { background: #022c22; border-color: #14532d; box-shadow: none; }
+        }
+        @keyframes blink-red {
+            0%, 100% { background: linear-gradient(90deg, #7f1d1d 0%, #dc2626 50%, #7f1d1d 100%); border-color: var(--color-red); box-shadow: 0 0 30px var(--color-red); }
+            50% { background: #450a0a; border-color: #7f1d1d; box-shadow: none; }
+        }
+
+        .btn-option.correct { animation: blink-green 0.6s infinite; animation-iteration-count: 4; animation-fill-mode: forwards; }
+        .btn-option.incorrect { animation: blink-red 0.6s infinite; animation-iteration-count: 4; animation-fill-mode: forwards; }
+
+        /* Solid states after blink */
+        .btn-option.correct-solid {
+            background: linear-gradient(90deg, #14532d 0%, #16a34a 50%, #14532d 100%);
+            border-color: var(--color-green);
+            box-shadow: 0 0 30px var(--color-green);
+        }
+        .btn-option.incorrect-solid {
+            background: linear-gradient(90deg, #7f1d1d 0%, #dc2626 50%, #7f1d1d 100%);
+            border-color: var(--color-red);
+            box-shadow: 0 0 30px var(--color-red);
+        }
+
+        /* Ladder */
+        .ladder-step { transition: all 0.3s; }
+        .ladder-step.active { color: #facc15; font-weight: 800; background: rgba(250, 204, 21, 0.2); text-shadow: 0 0 10px #facc15; border-radius: 4px; padding: 2px 8px; }
+        .ladder-step.passed { color: var(--color-orange); }
+
+        /* Lifelines */
+        .lifeline-btn {
+            border: 2px solid #3b82f6;
+            border-radius: 50%;
+            width: 60px; height: 60px;
+            display: flex; align-items: center; justify-content: center;
+            background: #1e3a8a;
+            box-shadow: 0 0 10px var(--glow-blue);
+            transition: all 0.2s;
+            font-weight: bold;
+        }
+        .lifeline-btn:hover:not(:disabled) { transform: scale(1.1); background: #2563eb; cursor: pointer; }
+        .lifeline-btn:disabled { opacity: 0.3; filter: grayscale(100%); cursor: not-allowed; text-decoration: line-through; }
+
+        .modal-bg { background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px); }
+        .hidden-ui { display: none !important; }
+    </style>
+</head>
+<body class="bg-radial w-screen h-screen flex flex-col items-center">
+
+    <div id="start-screen" class="w-full h-full flex flex-col items-center justify-center p-8 z-20">
+        <h1 class="text-5xl md:text-7xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-500 to-gold-400 drop-shadow-[0_0_20px_rgba(139,92,246,0.8)] text-center tracking-wider">
+            WHO WANTS TO BE A<br>MATH MILLIONAIRE
+        </h1>
+        <h2 class="text-2xl text-gold-400 mb-8 font-mono">Form 5 KSSM Mathematics</h2>
+        
+        <div class="glass p-8 rounded-2xl w-full max-w-2xl text-center">
+            <h3 class="text-xl font-bold mb-4 text-blue-300">How to play offline:</h3>
+            <p class="text-gray-300 mb-8 text-sm">
+                1. Right-click anywhere and select "Save As...".<br>
+                2. Save the file as <b>index.html</b> to your computer.<br>
+                3. Double-click the saved file to play anytime without internet!<br>
+                <i>Note: Allow audio to play when prompted by the browser.</i>
+            </p>
+            <button onclick="startGame()" class="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white text-2xl font-bold py-4 px-12 rounded-full shadow-[0_0_20px_rgba(59,130,246,0.6)] transition-all hover:scale-105 border-2 border-blue-400">
+                START GAME
+            </button>
+        </div>
+    </div>
+
+    <div id="game-screen" class="hidden-ui w-full h-full flex flex-col p-4 md:p-6 z-10 relative">
+        
+        <!-- Top Bar: Teacher Dash Toggle & Timer -->
+        <div class="flex justify-between items-center w-full mb-4">
+            <button onclick="toggleDashboard()" class="glass px-4 py-2 rounded text-gray-300 hover:text-white text-sm border-gray-600 hover:border-gray-400 transition">
+                ⚙️ Dashboard
+            </button>
+            
+            <div class="glass px-6 py-2 rounded-full border-2 border-gold-400 text-gold-400 text-2xl font-mono font-bold w-32 text-center" id="timer-display">
+                60
+            </div>
+        </div>
+
+        <div class="flex flex-col lg:flex-row flex-grow w-full gap-6">
+            
+            <!-- Left: Team Scores (Teacher Controlled) -->
+            <div class="glass p-4 rounded-xl flex flex-col gap-4 min-w-[200px]">
+                <h3 class="text-center font-bold text-blue-300 uppercase tracking-widest text-sm border-b border-blue-500/50 pb-2">Teams</h3>
+                
+                <!-- Team A -->
+                <div class="flex flex-col items-center p-2 border border-slate-600 rounded bg-slate-800/50">
+                    <span class="font-bold text-orange-400">Team A</span>
+                    <span id="score-a" class="text-2xl font-mono my-2">0</span>
+                    <div class="flex gap-2">
+                        <button onclick="adjustScore('a', -100)" class="bg-red-600/50 hover:bg-red-500 px-3 py-1 rounded">-</button>
+                        <button onclick="adjustScore('a', 100)" class="bg-green-600/50 hover:bg-green-500 px-3 py-1 rounded">+</button>
+                    </div>
+                </div>
+                <!-- Team B -->
+                <div class="flex flex-col items-center p-2 border border-slate-600 rounded bg-slate-800/50">
+                    <span class="font-bold text-blue-400">Team B</span>
+                    <span id="score-b" class="text-2xl font-mono my-2">0</span>
+                    <div class="flex gap-2">
+                        <button onclick="adjustScore('b', -100)" class="bg-red-600/50 hover:bg-red-500 px-3 py-1 rounded">-</button>
+                        <button onclick="adjustScore('b', 100)" class="bg-green-600/50 hover:bg-green-500 px-3 py-1 rounded">+</button>
+                    </div>
+                </div>
+                <!-- Team C -->
+                <div class="flex flex-col items-center p-2 border border-slate-600 rounded bg-slate-800/50">
+                    <span class="font-bold text-purple-400">Team C</span>
+                    <span id="score-c" class="text-2xl font-mono my-2">0</span>
+                    <div class="flex gap-2">
+                        <button onclick="adjustScore('c', -100)" class="bg-red-600/50 hover:bg-red-500 px-3 py-1 rounded">-</button>
+                        <button onclick="adjustScore('c', 100)" class="bg-green-600/50 hover:bg-green-500 px-3 py-1 rounded">+</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Center: Question & Options -->
+            <div class="flex-grow flex flex-col items-center justify-end pb-8 relative">
+                <!-- Question Box -->
+                <div class="glass w-full max-w-4xl border-2 border-blue-400 rounded-[50px] p-8 md:p-12 mb-8 text-center relative shadow-[0_0_30px_rgba(59,130,246,0.3)]">
+                    <div class="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-blue-900 border border-blue-400 text-blue-200 px-6 py-1 rounded-full font-bold text-sm">
+                        QUESTION <span id="q-num">1</span>
+                    </div>
+                    <h2 id="q-text" class="text-2xl md:text-4xl font-bold leading-tight">Question Text Here?</h2>
+                </div>
+
+                <!-- Options Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-5xl">
+                    <button id="opt-0" onclick="selectOption(0)" class="btn-option text-lg md:text-xl py-5 px-10 text-left flex items-center group">
+                        <span class="text-gold-400 font-bold mr-4 text-2xl group-hover:text-white">A:</span> <span id="opt-text-0">Option A</span>
+                    </button>
+                    <button id="opt-1" onclick="selectOption(1)" class="btn-option text-lg md:text-xl py-5 px-10 text-left flex items-center group">
+                        <span class="text-gold-400 font-bold mr-4 text-2xl group-hover:text-white">B:</span> <span id="opt-text-1">Option B</span>
+                    </button>
+                    <button id="opt-2" onclick="selectOption(2)" class="btn-option text-lg md:text-xl py-5 px-10 text-left flex items-center group">
+                        <span class="text-gold-400 font-bold mr-4 text-2xl group-hover:text-white">C:</span> <span id="opt-text-2">Option C</span>
+                    </button>
+                    <button id="opt-3" onclick="selectOption(3)" class="btn-option text-lg md:text-xl py-5 px-10 text-left flex items-center group">
+                        <span class="text-gold-400 font-bold mr-4 text-2xl group-hover:text-white">D:</span> <span id="opt-text-3">Option D</span>
+                    </button>
+                </div>
+
+                <!-- Bottom Controls (Lifelines & Next) -->
+                <div class="flex justify-between items-center w-full max-w-5xl mt-8">
+                    <div class="flex gap-4">
+                        <button id="ll-5050" onclick="use5050()" class="lifeline-btn" title="50:50">50:50</button>
+                        <button id="ll-class" onclick="useAskClass()" class="lifeline-btn" title="Ask the Class">📊</button>
+                        <button id="ll-hint" onclick="useHint()" class="lifeline-btn" title="Show Hint">💡</button>
+                    </div>
+                    
+                    <button id="next-btn" onclick="nextQuestion()" class="hidden-ui bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-8 rounded-full border-2 border-green-400 shadow-[0_0_15px_#22c55e]">
+                        NEXT QUESTION ➡
+                    </button>
+                </div>
+                
+                <!-- Hint / Explanation Box -->
+                <div id="hint-box" class="hidden-ui mt-6 p-4 glass border-gold-400 text-gold-200 rounded max-w-4xl w-full text-center text-lg shadow-[0_0_15px_rgba(250,204,21,0.3)]">
+                </div>
+            </div>
+
+            <!-- Right: Reward Ladder -->
+            <div class="glass p-4 rounded-xl flex flex-col justify-end min-w-[200px]">
+                <h3 class="text-center font-bold text-gold-400 uppercase tracking-widest text-sm mb-4">Prizes</h3>
+                <div id="ladder" class="flex flex-col-reverse text-right font-mono text-lg gap-1">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ask Class Modal -->
+    <div id="poll-modal" class="hidden-ui fixed inset-0 modal-bg z-50 flex items-center justify-center p-4">
+        <div class="glass border-2 border-blue-400 rounded-xl w-full max-w-md p-8 text-center shadow-[0_0_30px_rgba(59,130,246,0.5)]">
+            <h2 class="text-3xl font-bold text-blue-300 mb-8">Audience Vote</h2>
+            <div class="flex items-end justify-center gap-6 h-48 mb-6 border-b-2 border-gray-600 pb-2">
+                <div class="flex flex-col items-center w-12"><div id="bar-0" class="w-full bg-blue-500 rounded-t transition-all duration-1000" style="height: 0%"></div><span class="mt-2 font-bold text-xl">A</span><span id="pct-0" class="text-sm">0%</span></div>
+                <div class="flex flex-col items-center w-12"><div id="bar-1" class="w-full bg-blue-500 rounded-t transition-all duration-1000" style="height: 0%"></div><span class="mt-2 font-bold text-xl">B</span><span id="pct-1" class="text-sm">0%</span></div>
+                <div class="flex flex-col items-center w-12"><div id="bar-2" class="w-full bg-blue-500 rounded-t transition-all duration-1000" style="height: 0%"></div><span class="mt-2 font-bold text-xl">C</span><span id="pct-2" class="text-sm">0%</span></div>
+                <div class="flex flex-col items-center w-12"><div id="bar-3" class="w-full bg-blue-500 rounded-t transition-all duration-1000" style="height: 0%"></div><span class="mt-2 font-bold text-xl">D</span><span id="pct-3" class="text-sm">0%</span></div>
+            </div>
+            <button onclick="closePoll()" class="mt-4 bg-blue-600 hover:bg-blue-500 px-8 py-3 rounded-full font-bold text-white border border-blue-400">Close</button>
+        </div>
+    </div>
+
+    <!-- Teacher Dashboard Modal -->
+    <div id="dashboard-modal" class="hidden-ui fixed inset-0 modal-bg z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border-2 border-purple-500 rounded-xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-[0_0_30px_rgba(139,92,246,0.5)]">
+            <div class="flex justify-between items-center p-6 border-b border-purple-500/50">
+                <h2 class="text-2xl font-bold text-purple-300">⚙️ Teacher Dashboard</h2>
+                <button onclick="toggleDashboard()" class="text-gray-400 hover:text-white text-3xl">&times;</button>
+            </div>
+            <div class="p-6 overflow-y-auto flex-grow flex flex-col gap-6">
+                <!-- Global Settings -->
+                <div class="glass p-4 rounded flex flex-wrap gap-4 items-center">
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1">Timer Duration (s):</label>
+                        <input type="number" id="dash-timer" value="60" class="bg-slate-800 border border-gray-600 rounded px-3 py-1 w-24 text-white">
+                    </div>
+                    <button onclick="applyTimer()" class="bg-blue-600 px-4 py-1 rounded">Apply Timer</button>
+                    <button onclick="Engine.toggleMute()" id="mute-btn-dash" class="bg-purple-600 px-4 py-1 rounded ml-auto">🔇 Mute Audio</button>
+                    <button onclick="endGame()" class="bg-red-600 px-4 py-1 rounded">End Game</button>
+                </div>
+                
+                <!-- Question List Editor -->
+                <div>
+                    <h3 class="font-bold text-blue-300 mb-2">Question Bank</h3>
+                    <div id="dash-q-list" class="flex flex-col gap-3 text-sm">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Message Modal (Replaces alerts) -->
+    <div id="msg-modal" class="hidden-ui fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+        <div id="msg-content" class="glass border-2 border-gold-400 text-3xl font-bold p-8 rounded-xl text-center transform scale-50 opacity-0 transition-all duration-300 text-white drop-shadow-lg shadow-[0_0_30px_rgba(250,204,21,0.5)]">
+            Message
+        </div>
+    </div>
+
+    <script>
+        /* --- AUDIO ENGINE --- */
+        class SoundEngine {
+            constructor() {
+                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                this.bgmOsc = null;
+                this.bgmGain = null;
+                this.isMuted = false;
+            }
+            
+            resume() { if(this.ctx.state === 'suspended') this.ctx.resume(); }
+            
+            toggleMute() {
+                this.isMuted = !this.isMuted;
+                const btn = document.getElementById('mute-btn-dash');
+                if(btn) btn.innerText = this.isMuted ? "🔊 Unmute Audio" : "🔇 Mute Audio";
+                if(this.isMuted) this.stopBgm();
+                else if (gameState.screen === 'game') this.startBgm();
+            }
+
+            playTone(freq, type, duration, vol=0.1, slideTo=null) {
+                if(this.isMuted) return;
+                this.resume();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                if(slideTo) osc.frequency.exponentialRampToValueAtTime(slideTo, this.ctx.currentTime + duration);
+                
+                gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+                
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.start(); osc.stop(this.ctx.currentTime + duration);
+            }
+
+            startBgm() {
+                if(this.isMuted || this.bgmOsc) return;
+                this.resume();
+                this.bgmOsc = this.ctx.createOscillator();
+                this.bgmGain = this.ctx.createGain();
+                this.bgmOsc.type = 'sine';
+                this.bgmOsc.frequency.value = 80;
+                
+                const lfo = this.ctx.createOscillator();
+                lfo.type = 'sine'; lfo.frequency.value = 1;
+                const lfoGain = this.ctx.createGain(); lfoGain.gain.value = 5;
+                lfo.connect(lfoGain); lfoGain.connect(this.bgmOsc.frequency);
+                lfo.start();
+                
+                this.bgmGain.gain.value = 0.08;
+                this.bgmOsc.connect(this.bgmGain); this.bgmGain.connect(this.ctx.destination);
+                this.bgmOsc.start();
+            }
+            stopBgm() {
+                if(this.bgmOsc) { this.bgmOsc.stop(); this.bgmOsc = null; }
+            }
+
+            playTick() { this.playTone(1200, 'sine', 0.1, 0.05); }
+            playSelect() { this.playTone(600, 'square', 0.1, 0.1); }
+            
+            playCorrect() {
+                if(this.isMuted) return;
+                this.stopBgm();
+                const now = this.ctx.currentTime;
+                // C major chord arpeggio
+                [261.63, 329.63, 392.00, 523.25].forEach((freq, i) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.value = freq;
+                    gain.gain.setValueAtTime(0.2, now + (i*0.1));
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + (i*0.1) + 1.5);
+                    osc.connect(gain); gain.connect(this.ctx.destination);
+                    osc.start(now + (i*0.1)); osc.stop(now + (i*0.1) + 1.5);
+                });
+            }
+            
+            playIncorrect() {
+                if(this.isMuted) return;
+                this.stopBgm();
+                this.playTone(200, 'sawtooth', 1.5, 0.2, 50); // Dissonant drop
+                setTimeout(() => this.playTone(180, 'sawtooth', 1.5, 0.2, 40), 200);
+            }
+
+            playVictory() {
+                if(this.isMuted) return;
+                this.stopBgm();
+                const now = this.ctx.currentTime;
+                const notes = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((freq, i) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'square';
+                    osc.frequency.value = freq;
+                    gain.gain.setValueAtTime(0.15, now + (i*0.15));
+                    gain.gain.linearRampToValueAtTime(0, now + (i*0.15) + 0.5);
+                    osc.connect(gain); gain.connect(this.ctx.destination);
+                    osc.start(now + (i*0.15)); osc.stop(now + (i*0.15) + 0.5);
+                });
+            }
+        }
+        const Engine = new SoundEngine();
+
+        /* --- DATA --- */
+        const questionsDB = [
+            { q: "What is the order of a matrix with 2 rows and 3 columns? / Apakah peringkat matriks yang mempunyai 2 baris dan 3 lajur?", opts: ["3x2", "2x3", "5", "6"], ans: 1, exp: "Order is always Rows x Columns (Baris x Lajur)." },
+            { q: "If y varies directly as x, which equation represents this? / Jika y berubah secara langsung dengan x, apakah persamaannya?", opts: ["y = k/x", "y = kx", "y = k + x", "y = x/k"], ans: 1, exp: "Direct variation is represented by y = kx." },
+            { q: "What is a deductible in insurance? / Apakah deduktibel dalam insurans?", opts: ["Amount paid by insurance", "Amount paid by policyholder before insurance pays", "Monthly premium", "Total coverage"], ans: 1, exp: "Deductible is the upfront cost borne by the insured before the company pays." },
+            { q: "What is the maximum value of the graph y = sin x? / Apakah nilai maksimum bagi graf y = sin x?", opts: ["0", "1", "-1", "360"], ans: 1, exp: "Basic sine graphs fluctuate between a maximum of 1 and a minimum of -1." },
+            { q: "[1, 2] + [3, 4] = ?", opts: ["[4, 6]", "[3, 8]", "[2, 2]", "[4, 8]"], ans: 0, exp: "Add corresponding elements: [1+3, 2+4] = [4, 6]." },
+            { q: "An enlargement with scale factor k = -1 is equivalent to a rotation of how many degrees? / Pembesaran faktor skala k=-1 setara dengan putaran berapa darjah?", opts: ["90", "180", "270", "360"], ans: 1, exp: "k = -1 flips the object to the opposite side of the center, equivalent to 180° rotation." },
+            { q: "y varies inversely as x. y=4 when x=2. Find y when x=4. / y berubah secara songsang dengan x. y=4 apabila x=2. Cari y apabila x=4.", opts: ["1", "2", "8", "16"], ans: 1, exp: "y = k/x -> 4 = k/2 -> k = 8. Then y = 8/4 = 2." },
+            { q: "Which is a tax relief? / Manakah pelepasan cukai?", opts: ["Zakat", "Medical expenses", "Sales tax", "Traffic summons"], ans: 1, exp: "Medical expenses are a tax relief that reduces chargeable income. Zakat is a tax rebate." },
+            { q: "The formula for variance involves subtracting the square of the... / Formula varians menolak kuasa dua...", opts: ["Median", "Mode", "Mean", "Range"], ans: 2, exp: "Variance = (Sum of x² / N) - Mean²." },
+            { q: "Find the determinant of matrix A = [[3, 2], [1, 4]]. / Cari penentu matriks A.", opts: ["14", "10", "11", "5"], ans: 1, exp: "Determinant = (ad - bc) = (3x4) - (2x1) = 12 - 2 = 10." },
+            { q: "State the period of the graph y = cos 2x. / Nyatakan tempoh graf y = cos 2x.", opts: ["90°", "180°", "270°", "360°"], ans: 1, exp: "Period = 360° / b. Here b=2, so 360° / 2 = 180°." },
+            { q: "Medical bill RM10,500. Deductible RM500. Co-insurance 80/20. How much does policyholder pay? / Bil RM10,500. Deduktibel RM500. Ko-insurans 80/20. Berapa pemegang polisi bayar?", opts: ["RM2,500", "RM2,000", "RM2,600", "RM8,000"], ans: 0, exp: "Pay Deductible RM500 first. Balance RM10,000. Pay 20% of balance = RM2,000. Total = RM2,500." },
+            { q: "p varies directly as q² and inversely as r. p=2 when q=2, r=4. Find the equation. / p berubah secara langsung dengan q² dan songsang dengan r. Cari persamaan.", opts: ["p = 2q²/r", "p = q²/(2r)", "p = 4q²/r", "p = q²/r"], ans: 0, exp: "p = kq²/r -> 2 = k(2²)/4 -> 2 = k(4)/4 -> k = 2. So p = 2q²/r." },
+            { q: "What does the cumulative frequency ogive help estimate? / Ogif kekerapan longgokan bantu anggar apa?", opts: ["Mean", "Median & Quartiles", "Mode", "Variance"], ans: 1, exp: "Ogives are used to find positional measures like the median and quartiles." },
+            { q: "A 2x2 matrix has no inverse if... / Matriks 2x2 tiada songsangan jika...", opts: ["Determinant is 0", "Determinant is 1", "It has negative numbers", "It is a square matrix"], ans: 0, exp: "The inverse formula divides by the determinant (1/ad-bc). If it is 0, it is undefined." }
+        ];
+
+        const rewardsList = [
+            "$100", "$200", "$300", "$500", "$1,000", 
+            "$2,000", "$4,000", "$8,000", "$16,000", "$32,000", 
+            "$64,000", "$125,000", "$250,000", "$500,000", "$1 MILLION"
+        ];
+
+        let gameState = {
+            screen: 'start', // start, game, end
+            qIndex: 0,
+            timer: 60,
+            timerMax: 60,
+            interval: null,
+            state: 'idle', // idle, locked, revealed
+            scores: { a: 0, b: 0, c: 0 },
+            lifelines: { 'll-5050': true, 'll-class': true, 'll-hint': true }
+        };
+
+        function showMessage(text, duration = 2000) {
+            const modal = document.getElementById('msg-modal');
+            const content = document.getElementById('msg-content');
+            content.innerText = text;
+            modal.classList.remove('hidden-ui');
+            
+            // Animate in
+            setTimeout(() => {
+                content.classList.remove('scale-50', 'opacity-0');
+                content.classList.add('scale-100', 'opacity-100');
+            }, 10);
+
+            setTimeout(() => {
+                content.classList.remove('scale-100', 'opacity-100');
+                content.classList.add('scale-50', 'opacity-0');
+                setTimeout(() => modal.classList.add('hidden-ui'), 300);
+            }, duration);
+        }
+
+        function buildLadder() {
+            const container = document.getElementById('ladder');
+            container.innerHTML = '';
+            for(let i=0; i<15; i++) {
+                const step = document.createElement('div');
+                step.id = `ladder-${i}`;
+                step.className = 'ladder-step py-[2px]';
+                step.innerHTML = `<span class="text-xs text-gray-500 mr-2">${i+1}</span> ${rewardsList[i]}`;
+                container.appendChild(step);
+            }
+        }
+
+        function updateLadder() {
+            for(let i=0; i<15; i++) {
+                const step = document.getElementById(`ladder-${i}`);
+                step.className = 'ladder-step py-[2px]';
+                if(i < gameState.qIndex) step.classList.add('passed');
+                if(i === gameState.qIndex) step.classList.add('active');
+            }
+        }
+
+        function adjustScore(team, amount) {
+            gameState.scores[team] += amount;
+            document.getElementById(`score-${team}`).innerText = gameState.scores[team];
+        }
+
+        function startGame() {
+            Engine.resume();
+            document.getElementById('start-screen').classList.add('hidden-ui');
+            document.getElementById('game-screen').classList.remove('hidden-ui');
+            gameState.screen = 'game';
+            gameState.qIndex = 0;
+            buildLadder();
+            Engine.startBgm();
+            loadQuestion();
+        }
+
+        function startTimer() {
+            clearInterval(gameState.interval);
+            gameState.timer = gameState.timerMax;
+            const display = document.getElementById('timer-display');
+            display.innerText = gameState.timer;
+            display.style.color = "var(--color-gold)";
+            
+            gameState.interval = setInterval(() => {
+                gameState.timer--;
+                display.innerText = gameState.timer;
+                
+                if(gameState.timer <= 10 && gameState.timer > 0) {
+                    display.style.color = "var(--color-red)";
+                    Engine.playTick();
+                }
+                
+                if(gameState.timer <= 0) {
+                    clearInterval(gameState.interval);
+                    if(gameState.state === 'idle') {
+                        // Time's up
+                        showMessage("TIME'S UP!", 3000);
+                        Engine.playIncorrect();
+                        revealAnswer(-1); // Reveal correct answer without selection
+                    }
+                }
+            }, 1000);
+        }
+
+        function stopTimer() { clearInterval(gameState.interval); }
+
+        function loadQuestion() {
+            if(gameState.qIndex >= 15) { endGame(true); return; }
+            
+            gameState.state = 'idle';
+            const q = questionsDB[gameState.qIndex];
+            
+            document.getElementById('q-num').innerText = gameState.qIndex + 1;
+            document.getElementById('q-text').innerText = q.q;
+            document.getElementById('next-btn').classList.add('hidden-ui');
+            document.getElementById('hint-box').classList.add('hidden-ui');
+            
+            for(let i=0; i<4; i++) {
+                const btn = document.getElementById(`opt-${i}`);
+                btn.className = 'btn-option text-lg md:text-xl py-5 px-10 text-left flex items-center group';
+                btn.disabled = false;
+                btn.style.visibility = 'visible';
+                document.getElementById(`opt-text-${i}`).innerText = q.opts[i];
+            }
+            
+            // Check lifelines status
+            ['ll-5050', 'll-class', 'll-hint'].forEach(id => {
+                const btn = document.getElementById(id);
+                btn.disabled = !gameState.lifelines[id];
+            });
+
+            updateLadder();
+            startTimer();
+            if(!Engine.isMuted && !Engine.bgmOsc) Engine.startBgm();
+        }
+
+        function selectOption(index) {
+            if(gameState.state !== 'idle') return;
+            gameState.state = 'locked';
+            stopTimer();
+            Engine.playSelect();
+            
+            const btn = document.getElementById(`opt-${index}`);
+            btn.classList.add('selected');
+            
+            // Disable all inputs
+            for(let i=0; i<4; i++) document.getElementById(`opt-${i}`).disabled = true;
+            ['ll-5050', 'll-class', 'll-hint'].forEach(id => document.getElementById(id).disabled = true);
+            
+            // Suspense delay
+            setTimeout(() => revealAnswer(index), 3000);
+        }
+
+        function revealAnswer(selectedIndex) {
+            gameState.state = 'revealed';
+            const q = questionsDB[gameState.qIndex];
+            const correctIndex = q.ans;
+            
+            // Remove selection class
+            if(selectedIndex >= 0) {
+                document.getElementById(`opt-${selectedIndex}`).classList.remove('selected');
+            }
+
+            if(selectedIndex === correctIndex) {
+                Engine.playCorrect();
+                const btn = document.getElementById(`opt-${correctIndex}`);
+                btn.classList.add('correct');
+                // Lock solid class after animation
+                setTimeout(() => { btn.classList.replace('correct', 'correct-solid'); }, 2400);
+            } else {
+                Engine.playIncorrect();
+                if(selectedIndex >= 0) {
+                    const btn = document.getElementById(`opt-${selectedIndex}`);
+                    btn.classList.add('incorrect');
+                    setTimeout(() => { btn.classList.replace('incorrect', 'incorrect-solid'); }, 2400);
+                }
+                const correctBtn = document.getElementById(`opt-${correctIndex}`);
+                correctBtn.classList.add('correct');
+                setTimeout(() => { correctBtn.classList.replace('correct', 'correct-solid'); }, 2400);
+            }
+
+            // Show explanation
+            setTimeout(() => {
+                document.getElementById('hint-box').innerText = q.exp;
+                document.getElementById('hint-box').classList.remove('hidden-ui');
+                document.getElementById('next-btn').classList.remove('hidden-ui');
+            }, 2500);
+        }
+
+        function nextQuestion() {
+            gameState.qIndex++;
+            loadQuestion();
+        }
+
+        function endGame(victory = false) {
+            stopTimer();
+            Engine.stopBgm();
+            gameState.screen = 'end';
+            if(victory) Engine.playVictory();
+            else Engine.playIncorrect();
+
+            document.getElementById('game-screen').innerHTML = `
+                <div class="w-full h-full flex flex-col items-center justify-center p-8 z-20">
+                    <h1 class="text-6xl md:text-8xl font-bold mb-4 ${victory ? 'text-gold-400 drop-shadow-[0_0_30px_rgba(250,204,21,1)]' : 'text-red-500 drop-shadow-[0_0_30px_rgba(239,68,68,1)]'} text-center tracking-wider">
+                        ${victory ? 'MILLIONAIRE!' : 'GAME OVER'}
+                    </h1>
+                    <div class="glass p-8 rounded-xl text-center mt-8 border-2 ${victory ? 'border-gold-400' : 'border-gray-500'}">
+                        <h2 class="text-3xl font-bold text-white mb-6">Final Scores</h2>
+                        <div class="flex gap-8 text-2xl font-mono">
+                            <div class="text-orange-400">Team A: <br>${gameState.scores.a}</div>
+                            <div class="text-blue-400">Team B: <br>${gameState.scores.b}</div>
+                            <div class="text-purple-400">Team C: <br>${gameState.scores.c}</div>
+                        </div>
+                    </div>
+                    <button onclick="location.reload()" class="mt-12 bg-blue-600 hover:bg-blue-500 text-white text-xl font-bold py-3 px-8 rounded-full border border-blue-400">PLAY AGAIN</button>
+                </div>
+            `;
+        }
+
+        function use5050() {
+            if(gameState.state !== 'idle' || !gameState.lifelines['ll-5050']) return;
+            gameState.lifelines['ll-5050'] = false;
+            document.getElementById('ll-5050').disabled = true;
+            Engine.playSelect();
+            
+            const q = questionsDB[gameState.qIndex];
+            let wrongIndices = [0,1,2,3].filter(i => i !== q.ans);
+            wrongIndices.sort(() => Math.random() - 0.5); // shuffle
+            
+            // Hide 2 wrong options
+            document.getElementById(`opt-${wrongIndices[0]}`).style.visibility = 'hidden';
+            document.getElementById(`opt-${wrongIndices[1]}`).style.visibility = 'hidden';
+        }
+
+        function useHint() {
+            if(gameState.state !== 'idle' || !gameState.lifelines['ll-hint']) return;
+            gameState.lifelines['ll-hint'] = false;
+            document.getElementById('ll-hint').disabled = true;
+            Engine.playSelect();
+            
+            const q = questionsDB[gameState.qIndex];
+            document.getElementById('hint-box').innerText = "HINT: " + q.exp;
+            document.getElementById('hint-box').classList.remove('hidden-ui');
+        }
+
+        function useAskClass() {
+            if(gameState.state !== 'idle' || !gameState.lifelines['ll-class']) return;
+            gameState.lifelines['ll-class'] = false;
+            document.getElementById('ll-class').disabled = true;
+            Engine.playSelect();
+            
+            document.getElementById('poll-modal').classList.remove('hidden-ui');
+            
+            const q = questionsDB[gameState.qIndex];
+            let percentages = [0,0,0,0];
+            
+            // Rig it slightly so correct answer has highest chance but not guaranteed 100%
+            percentages[q.ans] = Math.floor(Math.random() * 35) + 45; // 45-80%
+            let remaining = 100 - percentages[q.ans];
+            
+            let wrongIndices = [0,1,2,3].filter(i => i !== q.ans);
+            
+            // If 50:50 was used, allocate 0% to hidden options
+            let visibleWrongs = wrongIndices.filter(i => document.getElementById(`opt-${i}`).style.visibility !== 'hidden');
+            
+            if(visibleWrongs.length === 1) {
+                percentages[visibleWrongs[0]] = remaining;
+            } else {
+                percentages[wrongIndices[0]] = Math.floor(Math.random() * remaining);
+                remaining -= percentages[wrongIndices[0]];
+                percentages[wrongIndices[1]] = Math.floor(Math.random() * remaining);
+                percentages[wrongIndices[2]] = remaining - percentages[wrongIndices[1]];
+            }
+
+            // Animate
+            setTimeout(() => {
+                for(let i=0; i<4; i++) {
+                    document.getElementById(`bar-${i}`).style.height = `${percentages[i]}%`;
+                    document.getElementById(`pct-${i}`).innerText = `${percentages[i]}%`;
+                }
+            }, 100);
+        }
+
+        function closePoll() {
+            document.getElementById('poll-modal').classList.add('hidden-ui');
+        }
+
+        function toggleDashboard() {
+            const modal = document.getElementById('dashboard-modal');
+            if(modal.classList.contains('hidden-ui')) {
+                populateDashboard();
+                modal.classList.remove('hidden-ui');
+            } else {
+                modal.classList.add('hidden-ui');
+            }
+        }
+
+        function populateDashboard() {
+            const list = document.getElementById('dash-q-list');
+            list.innerHTML = '';
+            questionsDB.forEach((q, i) => {
+                const isCurrent = i === gameState.qIndex;
+                list.innerHTML += `
+                    <div class="p-3 rounded border ${isCurrent ? 'border-gold-400 bg-slate-800' : 'border-slate-700 bg-slate-900'}">
+                        <div class="flex justify-between items-start mb-2">
+                            <strong class="text-blue-300">Q${i+1}: ${q.q}</strong>
+                            ${isCurrent ? '<span class="text-xs bg-gold-400 text-black px-2 rounded">CURRENT</span>' : ''}
+                        </div>
+                        <div class="text-gray-400 ml-4">
+                            A: ${q.opts[0]} ${q.ans===0 ? '✅' : ''} | 
+                            B: ${q.opts[1]} ${q.ans===1 ? '✅' : ''} | 
+                            C: ${q.opts[2]} ${q.ans===2 ? '✅' : ''} | 
+                            D: ${q.opts[3]} ${q.ans===3 ? '✅' : ''}
+                        </div>
+                        <div class="text-gray-500 mt-1 italic text-xs">Exp: ${q.exp}</div>
+                    </div>
+                `;
+            });
+        }
+
+        function applyTimer() {
+            const val = parseInt(document.getElementById('dash-timer').value);
+            if(val > 0) {
+                gameState.timerMax = val;
+                showMessage("Timer Updated to " + val + "s");
+            }
+        }
+    </script>
+</body>
+</html>
